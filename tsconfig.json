@@ -1,0 +1,30 @@
+{
+    "files": [],
+    "include": ["./env.d.ts", "./src/vue.d.ts", "./src/**/*"],
+    "references": [
+        {
+            "path": "./tsconfig.config.json",
+        },
+        {
+            "path": "./tsconfig.app.json"
+        },
+        {
+            "path": "./tsconfig.vitest.json"
+        }
+    ],
+    "compilerOptions": {
+        "lib": ["ES2020", "DOM"],
+        "strictNullChecks": false,
+        "allowJs": true,
+        "baseUrl": ".",
+        "paths": {
+            "@/*": [
+                "./src/*"
+            ]
+        },
+        "types": [
+            "vite/client",
+            "pinia-plugin-persist"
+        ],
+    }
+}

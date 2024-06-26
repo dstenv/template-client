@@ -1,0 +1,7 @@
+{
+    "files.autoSave": "off",
+    "unocss.root": "./",
+    "editor.codeActionsOnSave": {
+        "source.fixAll": true
+    }
+}

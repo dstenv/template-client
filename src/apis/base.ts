@@ -1,0 +1,167 @@
+import axios from 'axios'
+import { Tools } from 'dstenv-tools'
+import { useLoading } from '@/singleton/loading'
+import { useStorage } from '@/singleton/storage'
+import { plainToClass, type ClassConstructor } from 'class-transformer'
+
+type Method = 'GET' | 'POST' | 'DELETE' | 'PUT'
+type Content = 'application/json'
+type HeaderKey = 'Content-Type' | 'Accept' | 'Authorization' | 'RefreshToken'
+type keyFn = (payload: Partial<Record<HeaderKey, string | boolean>>) => void
+type HeaderKeyFn = Partial<Record<HeaderKey, keyFn>>
+
+export interface RequestBaseType {
+  method?: Method
+  headers?: Partial<Record<HeaderKey, boolean | string>>
+  url?: string
+  data?: any
+  params?: any
+  timeout?: number
+  httpType?: 'api' | 'apis'
+  loading?: boolean
+  oprateUrl?: () => string
+}
+export class ResponseBaseType<T> {
+  data!: {
+    data: T
+    status: number
+    msg: string
+  }
+}
+
+export class RequestType {
+  prefix!: string
+}
+
+const requestBaseConfig: RequestBaseType = {
+  method: 'GET',
+  headers: {
+    'Content-Type': 'application/json',
+    'Accept': 'application/json',
+    'Authorization': true,
+  },
+  url: '',
+  timeout: 5000,
+  loading: true,
+}
+
+const bodyObj: Partial<Record<Method, 'data' | 'params'>> = {
+  GET: 'params',
+  POST: 'data',
+  DELETE: 'data',
+}
+
+// 自定义请求头
+const customHeaderKey: HeaderKey[] = ['Authorization', 'RefreshToken']
+const customHeaderKeyFn: HeaderKeyFn = {
+  Authorization: (payload) => {
+    const storage = useStorage()
+    try {
+      payload.Authorization = storage.get('USER_TOKEN')
+    } catch (error) {
+      payload.Authorization = ''
+    }
+  },
+  RefreshToken: (payload) => {
+    const storage = useStorage()
+    try {
+      payload.RefreshToken = storage.get('USER_REFRESH_TOKEN')
+    } catch (error) {
+      payload.RefreshToken = ''
+    }
+  },
+}
+
+export class Request {
+  /**
+   * @description 初步完成
+   * @param {RequestBaseType} options 请求配置，如url等
+   * @param {U} resp 回参类型
+   * @return {*} Promise U 回参
+   */
+  request: <T, U extends { new (...args: any[]): U } = any>(
+    options: RequestBaseType,
+    resp: U
+  ) => (body?: T) => Promise<U>
+
+  constructor({ prefix }: RequestType) {
+    this.request = (options, resp) =>
+      async function (body) {
+        const loading = useLoading()
+
+        const id = loading.requestId++
+        loading.addRequest({
+          id,
+          finish: false,
+        })
+
+        const requestOptions = { ...options }
+        requestOptions.method =
+          requestOptions.method || requestBaseConfig.method
+        // 自定义请求头
+        if (requestOptions.headers) {
+          requestOptions.headers = {
+            ...requestBaseConfig.headers,
+            ...requestOptions.headers,
+          }
+          // 统一处理的请求头
+          for (const key of customHeaderKey) {
+            if (requestOptions.headers[key] === true) {
+              ;(customHeaderKeyFn[key] as keyFn)(requestOptions.headers)
+            }
+          }
+        }
+        requestOptions.timeout =
+          requestOptions.timeout || requestBaseConfig.timeout
+
+        if (requestOptions.oprateUrl) {
+          requestOptions.url = requestOptions.oprateUrl()
+        }
+
+        if (requestOptions.url?.startsWith('/')) {
+          requestOptions.url = requestOptions.url.slice(1)
+        }
+
+        if (prefix === 'api') {
+          prefix = `/${prefix}`
+        }
+
+        requestOptions.url = `${prefix || requestOptions.httpType}/${
+          requestOptions.url
+        }`
+
+        const bodyKey = bodyObj[requestOptions.method as Method]
+        if (bodyKey) {
+          requestOptions[bodyKey] = body
+        }
+
+        if (requestOptions.method === 'PUT') {
+          requestOptions.data = Tools.queryString(
+            body as unknown as { [key: string]: string }
+          )
+        }
+
+        if (requestOptions.loading ?? requestBaseConfig.loading) {
+          loading.create()
+        }
+        let result: ResponseBaseType<typeof resp>
+
+        try {
+          result = await axios({
+            ...requestOptions,
+          })
+        } catch (error: any) {
+          throw new Error(error.message)
+        } finally {
+          loading.finishOneRequest(id)
+
+          setTimeout(() => {
+            loading.close()
+          }, 300)
+        }
+
+        result.data.data = plainToClass(resp, result.data.data)
+        return result.data.data
+      }
+  }
+}

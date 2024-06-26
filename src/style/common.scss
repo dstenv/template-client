@@ -1,0 +1,33 @@
+:root {
+  /** 激活颜色 */
+  --active-color: #59ce61;
+  --tip-color: #e7b703;
+  --btn-tip-color: #0424d9;
+  --c-bg-color: #e5e5e5;
+  --login-card-bg: rgba(129, 209, 255, 0.4);
+  // 按钮相关
+  /** active颜色 */
+  --btn-active-color: #235fa4;
+  /** hover颜色 **/
+  --btn-hover-color: #2973c7;
+  /** 主题色 */
+  --btn-theme-color: #398ded;
+
+  // 文字相关
+  /** 文字颜色 */
+  --text-color: #1d1d1d;
+  /** 正文字体大小 */
+  --text-size: 14rem;
+  /** 一级标题文字大小 */
+  --text-title-size: 18rem;
+  /** 二级标题文字大小 */
+  --text-sec-title-size: 16rem;
+  /** 提示类型文字大小 */
+  --text-placeholder-size: 12rem;
+}
+/** 文本单行溢出 */
+.text-over {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
