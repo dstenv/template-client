@@ -4,6 +4,8 @@ import { refreshToken } from './user/refreshToken'
 import { useStorage } from '@/singleton/storage'
 import { showToast } from 'vant'
 import router from '@/router'
+import { refreshPublicKey } from '@/hooks/methods'
+import { Common } from '@/utils/common'
 
 axios.interceptors.response.use(
   async (response) => {
@@ -39,4 +41,30 @@ axios.interceptors.response.use(
     console.log('axios reponse -->', error)
     return Promise.reject(error)
   }
+)
+
+axios.interceptors.request.use(
+  async (requestConfig: any) => {
+    // 处理请求的扩展配置
+    if (requestConfig?.extendConfig) {
+      const originData = requestConfig.data || requestConfig.params
+      // 进行rsa加密的字段
+      if (requestConfig.extendConfig.rsaEncryptKeys.length > 0) {
+        await refreshPublicKey()
+        for (
+          let i = 0;
+          i < requestConfig.extendConfig.rsaEncryptKeys.length;
+          i++
+        ) {
+          const originValue =
+            originData[requestConfig.extendConfig.rsaEncryptKeys[i]]
+          originData[requestConfig.extendConfig.rsaEncryptKeys[i]] =
+            Common.rsaEncrypt(originValue)
+        }
+      }
+      delete requestConfig.extendConfig
+    }
+    return requestConfig
+  },
+  (error) => {}
 )

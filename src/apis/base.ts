@@ -17,9 +17,13 @@ export interface RequestBaseType {
   data?: any
   params?: any
   timeout?: number
-  httpType?: 'api' | 'apis'
-  loading?: boolean
-  oprateUrl?: () => string
+  extendConfig?: {
+    httpType?: 'api' | 'apis'
+    loading?: boolean
+    oprateUrl?: () => string
+    // 需要进行rsa加密的字段
+    rsaEncryptKeys?: string[]
+  }
 }
 export class ResponseBaseType<T> {
   data!: {
@@ -42,7 +46,9 @@ const requestBaseConfig: RequestBaseType = {
   },
   url: '',
   timeout: 5000,
-  loading: true,
+  extendConfig: {
+    loading: true,
+  },
 }
 
 const bodyObj: Partial<Record<Method, 'data' | 'params'>> = {
@@ -87,6 +93,7 @@ export class Request {
   constructor({ prefix }: RequestType) {
     this.request = (options, resp) =>
       async function (body) {
+        const requestOptions = { ...options }
         const loading = useLoading()
 
         const id = loading.requestId++
@@ -95,27 +102,26 @@ export class Request {
           finish: false,
         })
 
-        const requestOptions = { ...options }
         requestOptions.method =
           requestOptions.method || requestBaseConfig.method
+
+        requestOptions.headers = {
+          ...requestBaseConfig.headers,
+          ...requestOptions.headers,
+        }
         // 自定义请求头
-        if (requestOptions.headers) {
-          requestOptions.headers = {
-            ...requestBaseConfig.headers,
-            ...requestOptions.headers,
-          }
-          // 统一处理的请求头
-          for (const key of customHeaderKey) {
-            if (requestOptions.headers[key] === true) {
-              ;(customHeaderKeyFn[key] as keyFn)(requestOptions.headers)
-            }
+
+        // 统一处理的请求头
+        for (const key of customHeaderKey) {
+          if (requestOptions.headers[key] === true) {
+            ;(customHeaderKeyFn[key] as keyFn)(requestOptions.headers)
           }
         }
         requestOptions.timeout =
           requestOptions.timeout || requestBaseConfig.timeout
 
-        if (requestOptions.oprateUrl) {
-          requestOptions.url = requestOptions.oprateUrl()
+        if (requestOptions?.extendConfig?.oprateUrl) {
+          requestOptions.url = requestOptions.extendConfig.oprateUrl()
         }
 
         if (requestOptions.url?.startsWith('/')) {
@@ -126,9 +132,9 @@ export class Request {
           prefix = `/${prefix}`
         }
 
-        requestOptions.url = `${prefix || requestOptions.httpType}/${
-          requestOptions.url
-        }`
+        requestOptions.url = `${
+          prefix || requestOptions?.extendConfig?.httpType
+        }/${requestOptions.url}`
 
         const bodyKey = bodyObj[requestOptions.method as Method]
         if (bodyKey) {
@@ -141,7 +147,10 @@ export class Request {
           )
         }
 
-        if (requestOptions.loading ?? requestBaseConfig.loading) {
+        if (
+          requestOptions?.extendConfig?.loading ??
+          requestBaseConfig.extendConfig?.loading
+        ) {
           loading.create()
         }
         let result: ResponseBaseType<typeof resp>
