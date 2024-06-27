@@ -10,19 +10,19 @@ type HeaderKey = 'Content-Type' | 'Accept' | 'Authorization' | 'RefreshToken'
 type keyFn = (payload: Partial<Record<HeaderKey, string | boolean>>) => void
 type HeaderKeyFn = Partial<Record<HeaderKey, keyFn>>
 
-export interface RequestBaseType {
+export interface RequestBaseType<T> {
   method?: Method
   headers?: Partial<Record<HeaderKey, boolean | string>>
   url?: string
-  data?: any
-  params?: any
+  data?: T
+  params?: T
   timeout?: number
   extendConfig?: {
     httpType?: 'api' | 'apis'
     loading?: boolean
     oprateUrl?: () => string
     // 需要进行rsa加密的字段
-    rsaEncryptKeys?: string[]
+    rsaEncryptKeys?: (keyof T)[]
   }
 }
 export class ResponseBaseType<T> {
@@ -37,7 +37,7 @@ export class RequestType {
   prefix!: string
 }
 
-const requestBaseConfig: RequestBaseType = {
+const requestBaseConfig: RequestBaseType<any> = {
   method: 'GET',
   headers: {
     'Content-Type': 'application/json',
@@ -86,7 +86,7 @@ export class Request {
    * @return {*} Promise U 回参
    */
   request: <T, U extends { new (...args: any[]): U } = any>(
-    options: RequestBaseType,
+    options: RequestBaseType<T>,
     resp: U
   ) => (body?: T) => Promise<U>
 
@@ -144,7 +144,7 @@ export class Request {
         if (requestOptions.method === 'PUT') {
           requestOptions.data = Tools.queryString(
             body as unknown as { [key: string]: string }
-          )
+          ) as unknown as any
         }
 
         if (
